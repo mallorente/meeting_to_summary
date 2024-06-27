@@ -26,6 +26,22 @@ log_file = "process_log.log"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[logging.FileHandler(log_file), logging.StreamHandler()])
 
+def is_file_fully_copied(file_path, check_interval=1, max_checks=10):
+    previous_size = -1
+    for _ in range(max_checks):
+        try:
+            current_size = os.path.getsize(file_path)
+        except FileNotFoundError:
+            logging.warning(f"Archivo no encontrado: {file_path}. Reintentando...")
+            time.sleep(check_interval)
+            continue
+
+        if current_size == previous_size:
+            return True
+        previous_size = current_size
+        time.sleep(check_interval)
+    return False
+
 def convert_to_mp3(file_path, output_dir):
     try:
         video = VideoFileClip(file_path)
@@ -97,6 +113,9 @@ def summarize_transcript(transcript_text, output_dir, base_filename):
 
 def process_file(file_path):
     logging.info(f"Procesando archivo: {file_path}")
+    while not is_file_fully_copied(file_path):
+        logging.info(f"El archivo {file_path} no se ha copiado completamente, esperando...")
+        time.sleep(5)
     base_filename = os.path.basename(file_path).rsplit('.', 1)[0]
     output_dir = os.path.join(os.path.dirname(file_path), f"transcripciones_{base_filename}")
     os.makedirs(output_dir, exist_ok=True)
